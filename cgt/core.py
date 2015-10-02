@@ -296,7 +296,7 @@ class Node(object):
     def __rdiv__(self, other):
         return cgt.constant(other).__div__(self)
     def __rtruediv__(self, other):
-        return cgt.constant(other).__rtruediv__(self)
+        return cgt.constant(other).__truediv__(self)
     def __rfloordiv__(self, other):
         return cgt.constant(other).__floordiv__(self)
     def __getitem__(self, slis):
