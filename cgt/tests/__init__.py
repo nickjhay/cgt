@@ -15,7 +15,7 @@ def gradcheck_model(cost, params, extravars=(), extravals=(), atol=1e-8, eps=1e-
     # Convert to Argument nodes
     param_args = [cgt.core.Argument(typ=s.typ,name=s.name)if s.is_data() else s for s in params]
 
-    # Get new cost in terms o farguments
+    # Get new cost in terms of arguments
     cost = cgt.core.clone(cost, replace=dict(zip(params,param_args)))
 
     grads = cgt.grad(cost, param_args)

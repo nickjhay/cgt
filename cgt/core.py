@@ -412,7 +412,7 @@ class Op(object):
         raise NotImplementedError        
     def get_diff(self, num_inputs):
         """
-        Return a list of length len(inputs), specifying which inputs the Op is differentiable with respect to.
+        Return a list of length num_inputs, specifying which inputs the Op is differentiable with respect to.
         """
         assert isinstance(num_inputs, int)
         return [True]*num_inputs
@@ -435,7 +435,7 @@ class Op(object):
 
     def get_replacement(self, _newparents, _analysis):
         """
-        Return the name of this node
+        Return a replacement Node if this node can be simplified, otherwise None
         """
         return None
     def pullback(self, inputs, output, goutput): #pylint: disable=W0613
@@ -449,7 +449,7 @@ class Op(object):
         r"""
         Compute symbolic expressions for derivatives obtained by "tangent propagation" on this Op
         Given a function y = f(x_1, x_2, ..., x_k), let J_k denote the Jacobian dy/dx_k
-        pullback([x_1, ..., x_k], y, grady) := \sum_k J_k gradx_k
+        pushforward([x_1, ..., x_k], y, grady) := \sum_k J_k gradx_k
         """
         raise MethodNotDefined
     def spliting(self, inputs):
@@ -590,7 +590,7 @@ def make_argument(typ):
     elif isinstance(typ, TensorType):
         return Argument(TensorType(typ.dtype, typ.ndim))
     else:
-        raise ValueError("expected Tuple or Tensor. Got %s"%typ)
+        raise ValueError("expected Tuple or Tensor. Got %s"%(typ,))
 
 # ================================================================
 # Differentiation
@@ -654,7 +654,7 @@ def pullback(outputs, goutputs, wrt):
 
     # Map node to a list of gradient terms
     # These gradient terms will be summed up when we visit the node, when iterating through the nodes
-    # in reverse toplogical order
+    # in reverse topological order
     var2gs = defaultdict(list)
     for (node, gnode) in utils.safezip(outputs, goutputs):
         var2gs[node] = [gnode]
@@ -696,7 +696,7 @@ def pullback(outputs, goutputs, wrt):
                     assert (gpar is not None) == d # grad is None iff not diff wrt input
                     if d: var2gs[par].append(gpar)
 
-    # only we already summed up the gradients for the input nodes, so just take
+    # we already summed up the gradients for the input nodes, so just take the
     # 0th element
     return [var2gs[node][0] for node in wrt]
 
@@ -735,7 +735,6 @@ class NativeCompileInfo(object):
             setup=False, teardown=False, gpu_deref_mask=None, store_objects = (), extra_srcs=()):
         """
         func_code : code implementing function
-        lang : c++ or cuda
         closure_tuples: a list of triples (fieldname, ctypes class, value) that will be provided at each call at runtime
         includes: list of strings specifying files to includes
         link flags: string specifying link flags
@@ -743,6 +742,7 @@ class NativeCompileInfo(object):
         teardown: bool specifying if there's a teardown method, called $teardown
         gpu_deref_mask : None or tuple of bools specifying which arguments to Op will have data dereferenced on the GPU (i.e., they must be moved to GPU)
         store_objects : list of python objects which should be stored somewhere as long as the Callable created from this object exists, e.g. because they own some data it uses
+        extra_srcs : ???
         """
         # To be filled in by caller of constructor
         self.op_str = None

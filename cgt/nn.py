@@ -74,7 +74,7 @@ def dropout(x, p=0):
     else:
         mask = cgt.greater(cgt.rand(*cgt.shape(x)), p)
         x = x * mask
-        x = x /(1.0-p)
+        x = x / (1.0-p)
         return x
 
 
