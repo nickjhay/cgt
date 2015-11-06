@@ -1314,6 +1314,54 @@ class ElwiseBinary(Op):
             if r in node2sv and node2sv[r] == 0: out = l
         elif self.opname == "**":
             if r in node2sv and node2sv[r] == 1: out = l
+        
+        ## Cases where we can distribute        
+        if self.opname == "+":
+            if isinstance(l.op, IncSli) and isinstance(r.op, IncSli):
+                params_l = [node2sv.get(v,v) for v in l.parents[1:4]]
+                params_r = [node2sv.get(v,v) for v in r.parents[1:4]]
+                #print "params_l", params_l, "params_r", params_r
+                if params_l == params_r and l.op.axis == r.op.axis:
+                    #print "Anti-distribute IncSli"
+                    # FIXME: does elwise_binary set scalar_mask correctly, or 
+                    # do we need to look at node2shape?
+                    sum_1 = elwise_binary(self.opname, l.parents[0], r.parents[0])
+                    sum_2 = elwise_binary(self.opname, l.parents[4], r.parents[4])
+                    return Result(IncSli(l.op.axis), [sum_1] + params_l + [sum_2])
+            elif isinstance(l.op, Outer) and isinstance(r.op, Outer):
+                if l.parents[0] == r.parents[0]:
+                    summed = elwise_binary(self.opname, l.parents[1], r.parents[1])
+                    return Result(Outer(), [l.parents[0], summed])
+                elif l.parents[1] == r.parents[1]:
+                    summed = elwise_binary(self.opname, l.parents[0], r.parents[0])
+                    return Result(Outer(), [summed, l.parents[1]])
+            elif isinstance(l.op, Mul21) and isinstance(r.op, Mul21):
+                if l.op.tA == r.op.tA:  # TODO: may be too strict
+                    if l.parents[0] == r.parents[0]:
+                        summed = elwise_binary(self.opname, l.parents[1], r.parents[1])
+                        return Result(Mul21(l.op.tA), [l.parents[0], summed])
+                    elif l.parents[1] == r.parents[1]:
+                        summed = elwise_binary(self.opname, l.parents[0], r.parents[0])
+                        return Result(Mul21(l.op.tA), [summed, l.parents[1]])
+            elif isinstance(l.op, Mul22) and isinstance(r.op, Mul22):
+                if l.op.tA == r.op.tA and l.op.tB == r.op.tB:  # TODO: may be too strict
+                    if l.parents[0] == r.parents[0]:
+                        summed = elwise_binary(self.opname, l.parents[1], r.parents[1])
+                        return Result(Mul22(l.op.tA, l.op.tB), [l.parents[0], summed])
+                    elif l.parents[1] == r.parents[1]:
+                        summed = elwise_binary(self.opname, l.parents[0], r.parents[0])
+                        return Result(Mul22(l.op.tA, l.op.tB), [summed, l.parents[1]])
+
+        ## Cases where we can commute
+        if isinstance(l.op, Reshape) and isinstance(r.op, Reshape):
+            params_l = [node2sv.get(v,v) for v in l.parents[1:]]
+            params_r = [node2sv.get(v,v) for v in r.parents[1:]]
+            #print "params_l", params_l, "params_r", params_r
+            if params_l == params_r:
+                #print "Commute with Reshape"
+                opped = elwise_binary(self.opname, l.parents[0], r.parents[0])
+                return Result(Reshape(), [opped] + params_l)
+            
 
         if out is not None:
             outtyp = self.typ_apply([p.typ for p in parents])
