@@ -731,6 +731,21 @@ def grad(cost, wrt, check_uninfluenced=True):
     if single_wrt:
         retval = retval[0]
     return retval
+    
+def derivative(output, wrt, check_uninfluenced=True):
+    """
+    Compute total derivative of `output` by concatenation of gradient of components.
+    """
+    shape = cgt.core.infer_shape(output)
+    output_size = int(shape[0]) if len(shape)==1 else 1
+    assert len(shape)<=1, "Output must be at most vector (for now: could try flattening it)"
+    assert isinstance(output_size, int), "Invalid output size: %s"%(output_size,)
+
+    grads = [cgt.grad(output[i], wrt, check_uninfluenced=check_uninfluenced) for i in range(output_size)]
+    out = []
+    for i in range(len(wrt)):
+        out.append(cgt.concatenate([gs[i].reshape([1]+gs[i].shape) for gs in grads], axis=0))    
+    return out    
 
 # ================================================================
 # Compilation 
