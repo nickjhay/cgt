@@ -633,7 +633,7 @@ def differentiably_influenced_by(wrt, outputs=None, nodelist=None):
             dibset.add(node)
     return dibset
 
-def pullback(outputs, goutputs, wrt):
+def pullback(outputs, goutputs, wrt, check_uninfluenced=True):
     """    
     This function propagates derivative information backwards from the outputs of a computation
     to the inputs. 
@@ -642,22 +642,24 @@ def pullback(outputs, goutputs, wrt):
     This function is called 'pullback' as a reference to the similar concept in differential geometry.
     
     More precisely, suppose f is a function with (y_1, y_2, ..., y_k) = f(x_1, x_2, ..., x_n)
-    Then pullback([x_1,...,x_n], [y_1,...,y_k], [gy_1, ..., gy_k]) := [gx_1, ..., gx_n]
+    Then pullback([y_1,...,y_k], [gy_1, ..., gy_k], [x_1,...,x_n]) := [gx_1, ..., gx_n]
     """
     nodelist = list(topsorted(outputs))
 
     dio = differentiably_influences(outputs,nodelist=nodelist)
     dibw = differentiably_influenced_by(wrt, nodelist=nodelist)
 
-    # Check that each output is differentiably influenced by some input
-    badwrtset = set(wrt).difference(dio)
-    if badwrtset:
-        raise NonDifferentiable("Outputs not differentiable wrt %s"%badwrtset)
+    if check_uninfluenced:
+        # Check that each output is differentiably influenced by some input
+        #   nickjhay: why do this? some expressions are constant.
+        badwrtset = set(wrt).difference(dio)
+        if badwrtset:
+            raise NonDifferentiable("Outputs not differentiable wrt %s"%badwrtset)
 
-    # Check that each input differentiably influences some output
-    badoutset = set(outputs).difference(dibw)
-    if badoutset:
-        raise NonDifferentiable("Outputs %s not differentiable wrt any of %s"%(badoutset, badwrtset))
+        # Check that each input differentiably influences some output
+        badoutset = set(outputs).difference(dibw)
+        if badoutset:
+            raise NonDifferentiable("Outputs %s not differentiable wrt any of %s"%(badoutset, wrt))
 
     # Map node to a list of gradient terms
     # These gradient terms will be summed up when we visit the node, when iterating through the nodes
@@ -705,7 +707,7 @@ def pullback(outputs, goutputs, wrt):
 
     # we already summed up the gradients for the input nodes, so just take the
     # 0th element
-    return [var2gs[node][0] for node in wrt]
+    return [var2gs[node][0] if len(var2gs[node])>0 else cgt.zeros_like(node) for node in wrt]
 
 def infer_shape(arr):
     """
@@ -713,7 +715,7 @@ def infer_shape(arr):
     """
     return tuple(x.op.value if isinstance(x.op, Constant) else None for x in  CACHER.simplify(cgt.shape(arr)))
 
-def grad(cost, wrt):    
+def grad(cost, wrt, check_uninfluenced=True):
     """
     Compute the gradient of scalar-valued `cost` with respect to a list of variables `wrt`
     """
@@ -725,7 +727,7 @@ def grad(cost, wrt):
         wrtl = wrt
     assert all(x.is_input() for x in wrtl), "Can only differentiate wrt Input nodes."
     gout = _singleton_ones(cost.dtype, 0)
-    retval = pullback([cost], [gout], wrtl)
+    retval = pullback([cost], [gout], wrtl, check_uninfluenced=check_uninfluenced)
     if single_wrt:
         retval = retval[0]
     return retval
