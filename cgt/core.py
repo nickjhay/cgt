@@ -1725,6 +1725,36 @@ class Sum(Op):
         code = gen_reduction_code(input_types[0].dtype, self.axes, input_types[0].ndim, "x+y","0")
         return NativeCompileInfo(code, includes=["string.h"])
 
+class Min(Op):
+    available_impls = ("python","native_cpu")    
+    def __init__(self, axes):
+        self.axes = tuple(axes)
+    def get_diff(self, _):
+        return [True]
+    def __str__(self):
+        return "Min{%s}"%(",".join(map(str,self.axes)))
+    def get_py_func(self, input_types):
+        def f(reads, write):
+            reads[0].min(axis=self.axes or None,keepdims=True, out=write)
+        return f
+    def pullback(self, inputs, output, goutput):
+        x = inputs[0]
+        inputpat = "x"*x.ndim
+        singpat = "".join(["1" if i in self.axes else "x" for i in xrange(x.ndim)])
+        bcpat = singpat+","+inputpat
+        return [cgt.broadcast("*", goutput, cgt.broadcast("==", output, x, bcpat), bcpat)]
+        # XXX doesn't deal well with corner case
+    def shp_apply(self, inputs):
+        x = inputs[0]
+        s = cgt.shape(x)
+        return [(cgt.constant(1) if i in self.axes else s[i]) for i in xrange(x.ndim)]
+    def typ_apply(self, input_types):
+        return input_types[0]
+    def get_native_compile_info(self, input_types, devtype):
+        ## FIXME: check if the right-most argument is right here and in Max
+        code = gen_reduction_code(input_types[0].dtype, self.axes, input_types[0].ndim, "fmin(x,y)", "std::numeric_limits<%(cdtype)s>::max()")
+        return NativeCompileInfo(code, includes=["string.h","limits","math.h"])
+              
 class Max(Op):
     available_impls = ("python","native_cpu")    
     def __init__(self, axes):

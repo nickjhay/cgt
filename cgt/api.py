@@ -434,6 +434,16 @@ def make_tuple(*xs):
     """
     return core.Result(core.MakeTuple(), list(xs))
 
+def min(x, axis=None, keepdims=False): #pylint: disable=W0622
+    """
+    Like numpy.min
+    """
+    axes = _red_axes(axis, x.ndim)
+    out = core.Result(core.Min(axes), [x])
+    if (not keepdims):
+        out = _dropdims(out, axes)
+    return out
+
 def max(x, axis=None, keepdims=False): #pylint: disable=W0622
     """
     Like numpy.max
