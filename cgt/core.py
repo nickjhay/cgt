@@ -891,6 +891,8 @@ class Constant(Op): #pylint: disable=W0223
     def get_value(self):
         return self.value
 
+import StringIO
+
 class ConstantTensor(Constant):
     return_type = "byref"
     # XXX for some reason valret version gives rare segfaults
@@ -929,7 +931,11 @@ class ConstantTensor(Constant):
         assert len(input_types)==0
         return _ndarray_type(self.value)
     def get_hash(self):
-        if self._hash is None: self._hash = cPickle.dumps(self.value, -1)
+        #if self._hash is None: self._hash = cPickle.dumps(self.value, -1)
+        if self._hash is None:
+            output = StringIO.StringIO()
+            np.save(output, self.value)
+            return str(output)
         return self._hash
     def get_closure(self):
         assert isinstance(self.value, np.ndarray)
