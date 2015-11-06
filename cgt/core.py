@@ -371,6 +371,13 @@ class Node(object):
     def dimshuffle(self, pattern):
         "see cgt.dimshuffle"
         return cgt.dimshuffle(self, pattern)
+    def as_dot(self):
+        "see cgt.as_dot"
+        return cgt.as_dot(self)
+    def _repr_svg_(self):
+        "Display dot in IPython"
+        return cgt.as_dot(self)._repr_svg_()
+
 
 
 def _ndarray_type(value):
