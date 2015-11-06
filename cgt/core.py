@@ -2214,6 +2214,10 @@ class Mul21(Op):
     def get_replacement(self, inputs, analysis):
         if inputs[1] in analysis["node2sv"]:
             return cgt.sum(inputs[0],0 if self.tA else 1) * analysis["node2sv"][inputs[1]]
+        if isinstance(inputs[0],Constant):
+            A = inputs[0].op.get_value()
+            if np.array_equal(A, np.identity(v.shape[0])):
+                return inputs[1]
     def pullback(self, inputs, _output, goutput):
         return [cgt.outer(goutput,inputs[1]), Result(Mul21(not self.tA), [inputs[0],goutput])]
     def shp_apply(self, inputs):
@@ -2260,6 +2264,9 @@ class Mul21(Op):
         return NativeCompileInfo(code, includes=["cblas.h"], link_flags="-lopenblas", closure_triples = self.get_closure())
     def get_expr(self, (xexpr,yexpr)):
         return u"%s%s \u00D7 %s"%(xexpr, u"\u1d57" if self.tA else "", yexpr)
+    def __repr__(self):
+        return "Mul21{%s}"%("T" if self.tA else "N",)
+       
 
 class Mul22(Op):
     @property
@@ -2319,6 +2326,18 @@ class Mul22(Op):
         return input_types[0]
     def get_closure(self):
         return [("tA",ctypes.c_bool, self.tA), ("tB",ctypes.c_bool, self.tB), ("handle",ctypes.c_void_p, 0)]
+    def get_replacement(self, inputs, analysis):
+        A_node, B_node = inputs
+        if isinstance(A_node.op,Constant):
+            A = A_node.op.get_value()
+            #print "check A for identity:\n", A
+            if np.array_equal(A, np.identity(A.shape[0])):
+                return cgt.transpose(B_node) if self.tB else B_node
+        if isinstance(B_node.op,Constant):
+            B = B_node.op.get_value()
+            #print "check B for identity:\n", B
+            if np.allclose(B, np.identity(B.shape[1])):
+                return cgt.transpose(A_node) if self.tA else A_node
     # best gemm docs: https://software.intel.com/en-us/node/520775
     def get_native_compile_info(self, input_types, devtype):
         npdtype = input_types[0].dtype
