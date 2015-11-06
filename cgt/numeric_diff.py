@@ -26,3 +26,19 @@ def numeric_grad_multi(f, xs, eps=1e-9,method="central"):
         out.append(numeric_grad(f1, xs[i], eps, method=method))
     return out
 
+def numeric_grad_array(f,x,eps=1e-9,method="central"):
+    if method == "central":
+        y = f(x)
+        xpert = x.copy()
+        out = np.empty((x.size,y.size))
+        for i in xrange(x.size):
+            xpert.flat[i] = x.flat[i] + eps
+            yplus = f(xpert)
+            xpert.flat[i] = x.flat[i] - eps
+            yminus = f(xpert)
+            xpert.flat[i] = x.flat[i]
+            out[i] = ((yplus - yminus) / (2*eps)).flat
+            if (i+1)%1000 == 0: print "%i/%i components done"%(i+1,x.size)        
+        return out.T.reshape(y.shape + x.shape)
+    else:
+        raise NotImplementedError("invalid method %s"%method)
