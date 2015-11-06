@@ -1513,6 +1513,19 @@ class Reshape(Op):
             if not out.flags.c_contiguous: out = out.copy()
             return out
         return f
+    def get_replacement(self, parents, analysis):
+        arr_node = parents[0]
+        shape_nodes = parents[1:]
+        node2sv = analysis["node2sv"]
+        node2shape = analysis["node2shape"]
+        if isinstance(arr_node.op, Reshape):
+             return Result(self, [arr_node.parents[0]] + parents[1:])
+        
+        dest_shape = [node2sv.get(node,node) for node in parents[1:]]
+        existing_shape = [int(s) for s in infer_shape(parents[0])]
+        if existing_shape == dest_shape:
+            return arr_node
+            
     def pullback(self, inputs, _out, gout):
         return [cgt.reshape(gout, cgt.shape(inputs[0]))] + [None]*(len(inputs)-1)
     def shp_apply(self, inputs):
