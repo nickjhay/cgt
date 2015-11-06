@@ -2454,6 +2454,17 @@ class Outer(Op):
     def typ_apply(self, input_types):
         assert input_types[0] == input_types[1]
         return TensorType(input_types[0].dtype, 2)
+    def get_replacement(self, parents, analysis):
+        l,r = parents
+        # x (Ax)^T = (x x^T) A^T
+        #if isinstance(r.op, Mul21) and l == r.parents[1]:
+        #    outer = Result(Outer(), [l, l])
+        #    return Result(Mul22(False, not r.op.tA), [outer, r.parents[0]])
+        if isinstance(l.op, ConstantTensor):
+            v = l.op.get_value()
+            if v.shape == (1,) and v[0] == 1.0:
+                return Result(Reshape(), [r, cgt.constant(1)] + analysis["node2shape"][r])
+        
     def get_native_compile_info(self, input_types, devtype):
         npdtype = input_types[0].dtype
         code = r"""
