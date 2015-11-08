@@ -3164,12 +3164,16 @@ def update_config(**kws):
         if name not in config:
             raise ValueError("%s is not a valid config option"%name)
         config[name] = val
+    
+    if 'precision' in kws:
+        cgt.set_precision(config["precision"])
+
 
 class scoped_update_config(object):
     """
     example usage: 
 
-    with scoped_update_config(precision='single',backend='native', parallel=True)
+    with scoped_update_config(precision='single', backend='native', parallel=True):
         ...
 
     Changes relevant config variables in the scope of the `with` statements, and change them
