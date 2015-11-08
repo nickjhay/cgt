@@ -1524,7 +1524,11 @@ class Reshape(Op):
         dest_shape = [node2sv.get(node,node) for node in parents[1:]]
         existing_shape = [int(s) for s in infer_shape(parents[0])]
         if existing_shape == dest_shape:
-            return arr_node
+        existing_shape = infer_shape(parents[0])
+        if all([s is not None for s in existing_shape]):
+            existing_shape = [int(s) for s in existing_shape]
+            if existing_shape == dest_shape:
+                return arr_node
             
     def pullback(self, inputs, _out, gout):
         return [cgt.reshape(gout, cgt.shape(inputs[0]))] + [None]*(len(inputs)-1)
