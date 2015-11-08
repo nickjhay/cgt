@@ -832,8 +832,8 @@ class PyCallable(Callable):
     def n_in(self):
         return self._n_in
     
-    
-class NativeCallable(object):
+
+class NativeCallable(Callable):
     """
     Callable object with an underlying function pointer that acts on cgtObject
     """    
